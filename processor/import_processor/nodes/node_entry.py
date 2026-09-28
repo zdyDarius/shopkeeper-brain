@@ -18,7 +18,12 @@ def node_entry(state: ImportGraphState) -> ImportGraphState:
         path = state["local_file_path"]
         if path.endswith(".pdf"):
             state["is_pdf_read_enabled"] = True
+            state["pdf_path"] = state["local_file_path"]
         elif path.endswith(".md"):
             state["is_md_read_enabled"] = True
+            state["md_path"] =  state["local_file_path"]
+        else:
+            logger.warning(f"Unsupported file type: {path}")
+            return state
 
     return state
