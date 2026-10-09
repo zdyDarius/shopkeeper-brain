@@ -190,8 +190,6 @@ def step_3_refine_split_and_merge_chunks(title_chunks: list[dict[str, Any]]) -> 
     # 对经过递归切分后的chunk进行合并      前提：1.同一个父标题下(parent_tile)   2.待合并的chunk内容< CHUNK_MIN(400)   3.合并后内容 <CHUNK_MAX_SIZE(1000)
     refine_chunks = _merge_chunk_content(refine_chunks)
     logger.info(f"chunks经过超长以后向短切割处理! 切割后的数量:{len(refine_chunks)}")
-    for chunk in refine_chunks:
-        logger.debug(chunk)
 
     return refine_chunks
 
@@ -249,14 +247,14 @@ def _split_chunk_content(chunk: dict[str, Any]) -> list[dict[str, Any]]:
 
     prefix = chunk.get('title')+'\n'
 
-    deal_content = content.lstrip(prefix)
+    deal_content = content[len(prefix):]
     # 创建切分器对象
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE-len(prefix),
         chunk_overlap=CHUNK_OVERLAP,
         separators=["\n\n", "\n", "。", "！", "？", "；", "，", " "]
     )
-    for index, text in enumerate(deal_content.splitlines(), start=1):
+    for index, text in enumerate(splitter.split_text(deal_content), start=1):
         sub_chunks.append({
             "file_title": chunk.get("file_title"),
             "parent_title": chunk.get("title"),

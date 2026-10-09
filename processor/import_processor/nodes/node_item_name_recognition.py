@@ -98,7 +98,6 @@ def step_2_call_llm_return_item_name(chunks, file_title):
     if not item_name:
         item_name = file_title
         logger.warning(f"没有识别出item_name,使用file_title赋值:{item_name}")
-    logger.debug(item_name)
 
     return item_name
 
@@ -106,7 +105,6 @@ def step_2_call_llm_return_item_name(chunks, file_title):
 def step_3_padding_item_name_to_chunks(chunks, item_name):
     for chunk in chunks:
         chunk["item_name"] = item_name
-        logger.debug(chunk)
 
 @step_log("step_4_prepared_item_name_collection")
 def step_4_prepared_item_name_collection():
