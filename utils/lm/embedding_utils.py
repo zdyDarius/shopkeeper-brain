@@ -71,6 +71,10 @@ def generate_embeddings(texts):
         # 初始化稀疏向量处理结果，解析为字典格式（适配序列化/存储）
         processed_sparse = []
         for i in range(len(texts)):
+            logger.debug(i)
+            logger.debug(embeddings["sparse"].indices.tolist())
+            logger.debug(embeddings["sparse"].data)
+            logger.debug(embeddings["sparse"].indptr)
             # 提取第i个文本的稀疏向量索引：np.int64 → Python int（满足字典key可哈希要求）
             sparse_indices = embeddings["sparse"].indices[
                 embeddings["sparse"].indptr[i]:embeddings["sparse"].indptr[i + 1]
@@ -80,6 +84,8 @@ def generate_embeddings(texts):
                 embeddings["sparse"].indptr[i]:embeddings["sparse"].indptr[i + 1]
             ].tolist()
             # 构造{特征索引: 归一化权重}的稀疏向量字典
+            logger.debug(sparse_indices)
+            logger.debug(sparse_data)
             sparse_dict = {k: v for k, v in zip(sparse_indices, sparse_data)}
             processed_sparse.append(sparse_dict)
 
