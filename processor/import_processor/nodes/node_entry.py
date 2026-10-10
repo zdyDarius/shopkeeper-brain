@@ -2,6 +2,7 @@ import sys
 
 from common.logging.logger import logger, node_log
 from processor.import_processor.state import ImportGraphState
+from utils.task_utils import add_running_task, add_done_task
 
 @node_log("node_entry")
 def node_entry(state: ImportGraphState) -> ImportGraphState:
@@ -13,6 +14,7 @@ def node_entry(state: ImportGraphState) -> ImportGraphState:
     2. 判断文件类型 (PDF/MD)。
     3. 设置 state 中的路由标记 (is_pdf_read_enabled / is_md_read_enabled)。
     """
+    add_running_task(state.get("task_id"), "node_entry")
     # 模拟简单的路由逻辑，防止报错 (仅 node_entry 需要)
     if "local_file_path" in state:
         path = state["local_file_path"]
@@ -24,6 +26,8 @@ def node_entry(state: ImportGraphState) -> ImportGraphState:
             state["md_path"] =  state["local_file_path"]
         else:
             logger.warning(f"Unsupported file type: {path}")
+            add_done_task(state.get("task_id"), "node_entry")
             return state
 
+    add_done_task(state.get("task_id"), "node_entry")
     return state

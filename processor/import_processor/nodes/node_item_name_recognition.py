@@ -95,10 +95,10 @@ def step_2_call_llm_return_item_name(chunks, file_title):
 
     chains = llm_model | StrOutputParser()
     item_name = chains.invoke([message])
-    if not item_name:
+    logger.debug(f'item_name: {item_name}')
+    if not item_name or not item_name.strip():
         item_name = file_title
         logger.warning(f"没有识别出item_name,使用file_title赋值:{item_name}")
-
     return item_name
 
 @step_log("step_3_padding_item_name_to_chunks")
