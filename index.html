@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一言</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='6' fill='%23A63726'/%3E%3Ctext x='32' y='29' font-size='24' fill='%23F5F0E5' text-anchor='middle' font-family='Kaiti SC,serif'%3E一%3C/text%3E%3Ctext x='32' y='55' font-size='24' fill='%23F5F0E5' text-anchor='middle' font-family='Kaiti SC,serif'%3E言%3C/text%3E%3C/svg%3E">
+    <style>
+        :root {
+            --paper: #F5F0E5;
+            --ink: #2A2620;
+            --ink-faded: #6B6353;
+            --seal: #A63726;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 12vh; /* 给底部按钮留出位置,卷轴整体略偏上 */
+            color: var(--ink);
+            font-family: "Kaiti SC", "STKaiti", "KaiTi", "Kaiti TC", "Noto Serif SC", "Songti SC", serif;
+            /* 洒金笺:四层不同间距的金点,近似随机散布 */
+            background:
+                radial-gradient(rgba(200, 169, 107, .5) 1.1px, transparent 1.8px) 12px 24px / 265px 310px,
+                radial-gradient(rgba(200, 169, 107, .34) 1.6px, transparent 2.4px) 130px 88px / 340px 430px,
+                radial-gradient(rgba(200, 169, 107, .44) 1px, transparent 1.7px) 64px 180px / 215px 265px,
+                radial-gradient(rgba(200, 169, 107, .3) 1.3px, transparent 2px) 200px 40px / 190px 240px,
+                var(--paper);
+        }
+
+        /* 信笺:句子横排从左到右,落款署名+钤印沉在右下 */
+        .sheet {
+            max-width: 82vw;
+        }
+
+        /* 没取到句子前,整张信笺不可见:页面就是一张白纸,不用"加载中"占位 */
+        body:not(.ready) .sheet {
+            visibility: hidden;
+        }
+
+        .sentence {
+            font-size: clamp(24px, 3.4vw, 34px);
+            line-height: 1.9;
+            letter-spacing: .12em;
+            text-align: justify;
+            max-width: 21em; /* 每行约21字,长句自动换行 */
+        }
+
+        .sentence.error {
+            font-size: 16px;
+            line-height: 2.2;
+            color: var(--ink-faded);
+        }
+
+        /* 逐字落墨:唯一的编排动效 */
+        .ch {
+            opacity: 0;
+            animation: ink-in .5s ease forwards;
+            animation-delay: calc(min(var(--i), 20) * 60ms);
+        }
+
+        @keyframes ink-in {
+            from {
+                opacity: 0;
+                filter: blur(3px);
+            }
+            to {
+                opacity: 1;
+                filter: blur(0);
+            }
+        }
+
+        /* 落款:署名小字淡墨靠右,旁钤"一言"朱印 */
+        .author {
+            margin-top: 2.4em;
+            font-size: 15px;
+            letter-spacing: .1em;
+            color: var(--ink-faded);
+            text-align: right;
+            opacity: 0;
+            transition: opacity .7s ease .4s;
+        }
+
+        body.ready .author {
+            opacity: 1;
+        }
+
+        .seal {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 14px;
+            writing-mode: vertical-rl; /* "一言"两字上下相叠,保持印章样式 */
+            background: var(--seal);
+            color: var(--paper);
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: 3px;
+            padding: 9px 6px 6px;
+            border-radius: 2px;
+            transform: rotate(-3deg);
+            box-shadow: inset 0 0 7px rgba(105, 20, 10, .4);
+        }
+
+        .refresh {
+            position: fixed;
+            left: 50%;
+            bottom: 7vh;
+            transform: translateX(-50%);
+            font-family: inherit;
+            font-size: 14px;
+            letter-spacing: .4em;
+            padding: 10px 24px 10px calc(24px + .4em); /* 抵消末字后的字距,保证视觉居中 */
+            color: var(--ink);
+            background: transparent;
+            border: 1px solid rgba(42, 38, 32, .55);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background-color .25s, color .25s, border-color .25s, opacity .25s;
+        }
+
+        .refresh:hover:not([disabled]) {
+            background: var(--ink);
+            border-color: var(--ink);
+            color: var(--paper);
+        }
+
+        .refresh:focus-visible {
+            outline: 2px solid var(--seal);
+            outline-offset: 3px;
+        }
+
+        .refresh[disabled] {
+            opacity: .45;
+            cursor: default;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ch {
+                animation: none;
+                opacity: 1;
+            }
+            .author {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="sheet" aria-live="polite">
+        <p class="sentence" id="hitokoto"></p>
+        <p class="author">
+            <span id="from_who"></span>
+            <span class="seal" aria-hidden="true">一言</span>
+        </p>
+    </main>
+
+    <button class="refresh" id="refreshBtn" type="button">换一句</button>
+
+    <script>
+        const sentenceEl = document.getElementById('hitokoto');
+        const authorEl = document.getElementById('from_who');
+        const btn = document.getElementById('refreshBtn');
+
+        // 把句子拆成单字,逐字做落墨动画
+        function renderSentence(text) {
+            const frag = document.createDocumentFragment();
+            [...text].forEach((ch, i) => {
+                const span = document.createElement('span');
+                span.className = 'ch';
+                span.style.setProperty('--i', i);
+                span.textContent = ch;
+                frag.appendChild(span);
+            });
+            sentenceEl.replaceChildren(frag);
+        }
+
+        async function loadYiyan() {
+            btn.disabled = true;
+            try {
+                const response = await fetch('/yiyan');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                sentenceEl.classList.remove('error');
+                renderSentence(data.hitokoto || '未获取');
+                authorEl.textContent = '——' + (data.from_who || '未知');
+            } catch (e) {
+                sentenceEl.classList.add('error');
+                sentenceEl.textContent = '获取失败，点「换一句」重试';
+                authorEl.textContent = '';
+            } finally {
+                document.body.classList.add('ready');
+                btn.disabled = false;
+            }
+        }
+
+        btn.addEventListener('click', loadYiyan);
+        loadYiyan();
+    </script>
+</body>
+</html>

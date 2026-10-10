@@ -1,5 +1,5 @@
 """
-    fastapi
+    fastapi_bk
         开发框架,主要用于开发基于python语言的web服务(接口)
         接收前端请求，并对请求进行处理，然后将结果响应给前端页面
     协程---fastapi支持协程，并且事件循环不需要我们自己维护，由服务器uvicorn维护
@@ -132,7 +132,7 @@ from common.logging.logger import logger
 from processor.import_processor.main_graph import kb_import_app
 from processor.import_processor.state import ImportGraphState, create_default_state
 from utils.path_util import PROJECT_ROOT
-from utils.task_utils import get_done_task_list, get_running_task_list
+from utils.task_utils import get_done_task_list, get_running_task_list,get_task_status
 
 # 创建fastapi应用实例
 app = FastAPI()
@@ -201,8 +201,11 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
             raise HTTPException(status_code=400, detail=f"仅支持pdf/md文件,当前文件类型:{suffix}")
 
         # 2. 生成任务ID并保存上传文件(文件名加前缀避免重名覆盖)
+        # 每次上传前都确保目录存在:模块导入时的 mkdir 只执行一次,
+        # 服务启动后 output/ 目录被清理过就会写失败(实测踩过)
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         task_id = uuid.uuid4().hex
-        file_path_obj: Path = UPLOAD_DIR / f"{Path(file.filename).name}"
+        file_path_obj: Path = UPLOAD_DIR /f'{task_id}'/f"{Path(file.filename).name}"
         data = await file.read()
         file_path_obj.write_bytes(data)
 
@@ -247,11 +250,21 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
 
 @app.get("/task/{task_id}")
 async def get_task_status(task_id: str):
-    """前端轮询接口:查询后台导入任务状态 processing/success/failed"""
+    """前端轮询接口:任务状态 + 节点进度"""
     status = TASK_STATUS.get(task_id)
     if status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
-    return {"code": 0, "data": {"task_id": task_id, "status": status}}
+    return {
+        "code": 0,
+        "data": {
+            "task_id": task_id,
+            "status": status,  # processing/success/failed,保持不变
+            "done_list": get_done_task_list(task_id),       # 已完成节点(自动中文)
+            "running_list": get_running_task_list(task_id), # 正在进行节点(自动中文)
+        },
+    }
+
+
 @app.get("/health")
 async def get_health():
     return {"code": 0}
