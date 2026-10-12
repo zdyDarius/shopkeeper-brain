@@ -31,7 +31,7 @@ def after_node_item_name_confirm(state: QueryGraphState):
 
     return "node_search_embedding","node_search_embedding_hyde","node_web_search_mcp"
 
-builder.set_entry_point(node_item_name_confirm)
+builder.set_entry_point('node_item_name_confirm')
 # 条件边
 builder.add_conditional_edges(
     "node_item_name_confirm",

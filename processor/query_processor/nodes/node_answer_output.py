@@ -25,19 +25,11 @@ def node_answer_output(state:QueryGraphState):
             time.sleep(0.03)
 
         image_urls = ["https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png", "https://atguigu.com/images/index_new/logo.png"]
-        push_to_session(
-            session_id,
-            SSEEvent.FINAL,
-            {
-                "answer": final_text,
-                "status": "completed",
-                "image_urls": image_urls
-            }
-        )
+
         logger.info(f"流式输出完成，总长度: {len(final_text)}")
     else:
         final_text = base_answer
 
     add_done_task(state['session_id'], sys._getframe().f_code.co_name, state.get("is_stream"))
     logger.info("---node_answer_output 节点处理结束---")
-    return {"answer": final_text}
+    return {"answer": final_text,"image_urls": image_urls}

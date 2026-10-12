@@ -46,7 +46,7 @@ def push_to_session(session_id: str, event: str, data: Dict[str, Any]):
     """
     stream_queue = get_sse_queue(session_id)
     if stream_queue:
-        # print(f"[SSE] Pushing to session {session_id}: {event}")
+        print(f"[SSE] Pushing to session {session_id}: {event}")
         stream_queue.put({"event": event, "data": data})
     else:
         print(f"[SSE] Warning: No queue found for session {session_id} when pushing {event}")
