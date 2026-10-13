@@ -72,9 +72,9 @@ def get_query_graph(session_id: str,is_stream: bool,user_query: str):
                 session_id,
                 SSEEvent.FINAL,
                 {
-                    "answer": state.get("answer"),
+                    "answer": final_state.get("answer"),
                     "status": "completed",
-                    "image_urls": state.get("image_urls"),
+                    "image_urls": final_state.get("image_urls"),
                     'name': 'zdy'
                 }
             )

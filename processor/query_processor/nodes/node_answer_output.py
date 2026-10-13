@@ -17,14 +17,14 @@ def node_answer_output(state:QueryGraphState):
     is_stream = state.get("is_stream", True)
     base_answer = state.get("answer") or f"这是关于「{state.get('original_query', '当前问题')}」的测试回答，正在演示打字机流式输出效果。"
     final_text = ""
-
+    image_urls=[]
     if is_stream:
         for ch in base_answer:
             final_text += ch
             push_to_session(session_id, SSEEvent.DELTA, {"delta": ch})
             time.sleep(0.03)
 
-        image_urls = ["https://www.baidu.com/img/PCtm_d9c8750bed0b3c7d089fa7d55720d6cf.png", "https://atguigu.com/images/index_new/logo.png"]
+        image_urls = ["http://localhost:9000/knowledge-base-files/upload-images/03_%E4%BA%91%E5%B2%AD%E4%BA%91%E5%8D%97%E6%97%A5%E6%99%92%E6%8C%82%E8%80%B3%E5%92%96%E5%95%A1/c169fdd638f6b905781ccc96000555b6c47f2145775266f9ed87af1bd6f2c37c.jpg", "https://atguigu.com/images/index_new/logo.png"]
 
         logger.info(f"流式输出完成，总长度: {len(final_text)}")
     else:

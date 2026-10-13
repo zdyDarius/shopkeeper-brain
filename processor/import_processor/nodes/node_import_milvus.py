@@ -33,7 +33,8 @@ def node_import_milvus(state: ImportGraphState) -> ImportGraphState:
 def step_1_validate_and_get_data(state: ImportGraphState):
     embeddings_content = state.get("embeddings_content")
     if not embeddings_content :
-        pass
+        logger.error(f"embeddings_content没有值,业务无法继续,提前终止!")
+        raise ValueError(f"embeddings_content没有值,业务无法继续,提前终止!")
     return embeddings_content
 
 @step_log("step_2_prepared_item_name_collection")
