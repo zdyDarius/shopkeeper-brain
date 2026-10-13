@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 from pydantic import BaseModel, Field
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, UploadFile, BackgroundTasks, HTTPException,Request
@@ -12,6 +13,7 @@ from starlette.responses import JSONResponse, FileResponse, StreamingResponse
 from common.logging.logger import logger
 from processor.query_processor.main_graph import query_app
 from processor.query_processor.state import create_query_default_state
+from utils.clients.mongo_history_utils import get_recent_messages, clear_history
 from utils.path_util import PROJECT_ROOT
 from utils.sse_utils import sse_generator, push_to_session, SSEEvent, create_sse_queue
 from utils.task_utils import get_done_task_list, get_running_task_list, get_task_status, update_task_status, \
@@ -119,6 +121,26 @@ def query(query_request: QueryRequest, background_tasks: BackgroundTasks):
             "done_list": done_list,
             "image_urls": final_state.get("image_urls", [])
         })
+
+
+@app.get("/history/{session_id}")
+def history(session_id:str):
+    records : list[dict[str,Any]] = get_recent_messages(session_id)
+    logger.info(f"查询{session_id}的聊天记录,查询到:{len(records)}条!")
+    for record in records:
+        del record["_id"]
+    return JSONResponse(status_code=200, content={
+        "session_id": session_id,
+        'items' : records
+    })
+
+@app.delete("/history/{session_id}")
+def delete_history(session_id:str):
+    deleted_count = clear_history(session_id)
+    logger.info(f"已经清空:{session_id}对应的聊天记录,删除的数量为:{deleted_count}")
+    return {"message": "History cleared", "deleted_count": deleted_count}
+
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)

@@ -1,5 +1,4 @@
-历史会话：
-{history_text}
+
 
 当前用户问题：{query}
 
@@ -14,3 +13,6 @@
     "item_names": ["商品A", "商品B"],
     "rewritten_query": "关于商品A和商品B，..."
 }}
+
+历史会话：
+{history_text}

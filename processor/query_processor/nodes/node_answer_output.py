@@ -2,6 +2,7 @@ import time
 import sys
 from common.logging.logger import logger, node_log
 from processor.query_processor.state import QueryGraphState
+from utils.clients.mongo_history_utils import save_chat_message
 from utils.sse_utils import push_to_session, SSEEvent
 from utils.task_utils import add_running_task, add_done_task
 
@@ -29,7 +30,14 @@ def node_answer_output(state:QueryGraphState):
         logger.info(f"流式输出完成，总长度: {len(final_text)}")
     else:
         final_text = base_answer
-
+    save_chat_message(
+        session_id=state.get("session_id"),
+        role='assistant',
+        text=final_text,
+        rewritten_query="这是重写的问题",
+        item_names=["商品A", "商品B"],
+        image_urls=image_urls
+    )
     add_done_task(state['session_id'], sys._getframe().f_code.co_name, state.get("is_stream"))
     logger.info("---node_answer_output 节点处理结束---")
     return {"answer": final_text,"image_urls": image_urls}
