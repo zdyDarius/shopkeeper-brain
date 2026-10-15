@@ -5,13 +5,23 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 
+from common.config.milvus_config import milvus_config
 from common.logging.logger import node_log, logger, step_log
 from processor.query_processor.state import QueryGraphState
+from utils.clients.milvus_utils import create_hybrid_search_requests, get_milvus_client,hybrid_search
 from utils.clients.mongo_history_utils import save_chat_message, get_recent_messages
+from utils.lm.embedding_utils import generate_embeddings
 from utils.lm.lm_utils import get_llm_client
 from utils.load_prompt import load_prompt
 from utils.task_utils import add_running_task, add_done_task
 
+# 主体名称确认阈值：高于该分数 → 直接确认 [0.75]
+ITEM_NAME_CONFIRM_THRESHOLD = 0.70
+# 主体名称候选阈值：介于两者之间 → 让用户选择
+ITEM_NAME_CANDIDATE_THRESHOLD = 0.60
+# 给用户选择时，最多展示几个候选
+ITEM_NAME_OPTIONS_TOPK = 2
+ITEM_NAME_CONFIRMED_TOPK = 1
 @node_log("node_item_name_confirm")
 def node_item_name_confirm(state:QueryGraphState):
     """
@@ -29,7 +39,14 @@ def node_item_name_confirm(state:QueryGraphState):
 
     llm_dict: dict[str, Any] = step_3_call_llm_rewritten_and_extract_itemnames(history_list, original_query)
 
+    milvus_dict = step_4_select_item_names_milvus(llm_dict.get("item_names"))
 
+    confirmed_option_dict: dict[str, list[str]] = step_5_select_confirmed_and_option_item_names(milvus_dict)
+
+    # TODO 7.根据确认和可选更新状态
+    step_6_change_state_property(state, llm_dict.get("rewritten_query"), confirmed_option_dict)
+    # TODO 8.向mongodb中写入对话
+    step_7_save_user_chat_message(state)
 
     # 后面会调用大模型，进行逻辑处理
     # save_chat_message(
@@ -123,6 +140,104 @@ def step_3_call_llm_rewritten_and_extract_itemnames(history_list, original_query
     logger.debug(f"json_dict: {json_dict}")
 
     return json_dict
+
+
+@step_log("step_4_select_item_names_milvus")
+def step_4_select_item_names_milvus(llm_item_names)->dict[str, list[dict]]:
+    if not llm_item_names:
+        return {}
+    milvus_search_dict: dict[str, list[dict]] = {}
+    result = generate_embeddings(llm_item_names)
+
+    for index, llm_item_name in enumerate(llm_item_names):
+
+        dense_vector = result.get("dense")[index]
+        sparse_vector = result.get("sparse")[index]
+        reqs_list = create_hybrid_search_requests(dense_vector, sparse_vector)
+
+        milvus_client = get_milvus_client()
+        response = hybrid_search(
+            client=milvus_client,
+            collection_name=milvus_config.item_name_collection,
+            reqs=reqs_list,
+            ranker_weights=(0.4, 0.6),
+            norm_score=True,  # 是否进行归一化处理
+            output_fields=["item_name"]
+        )
+        real_response = response[0]
+        llm_item_result_list: list[dict] = []
+        for item in real_response:
+            llm_item_result_list.append(
+                {
+                    "item_name":item.get("entity").get("item_name"),
+                    "score": item.get("distance")
+                 }
+            )
+        milvus_search_dict[llm_item_name] = llm_item_result_list
+        logger.debug(f"milvus_search_dict: {milvus_search_dict}")
+    return milvus_search_dict
+@step_log("step_5_select_confirmed_and_option_item_names")
+def step_5_select_confirmed_and_option_item_names(milvus_dict):
+    """
+
+        :param milvus_dict:
+        {
+        "商品A":[{"item_name":"商品a","score":0.7},{"item_name":"商品ab","score":0.6}]
+        "商品B":[{"item_name":"商品b","score":0.7},{"item_name":"商品ab","score":0.6}]
+        }
+        :return:  {"confirmed_list":[item_name1],"option_list":[item_name2,...]}"}
+        """
+    if not milvus_dict:
+        return {}
+    confirmed_list: list[dict] = []
+    option_list: list[dict] = []
+    for llm_item_name,item_list in milvus_dict.items():
+        high_list = [item.get('item_name') for item in item_list if item.get('score') >= ITEM_NAME_CONFIRM_THRESHOLD]
+        middle_list = [item.get('item_name') for item in item_list if
+                       ITEM_NAME_CANDIDATE_THRESHOLD  <=item.get('score',0.0) < ITEM_NAME_CONFIRM_THRESHOLD ]
+        if high_list:
+            confirmed_list.extend(
+                high_list[:ITEM_NAME_CONFIRMED_TOPK]
+            )
+            logger.info(f"{llm_item_name}已经获取到可信的主体:{high_list[:ITEM_NAME_CONFIRMED_TOPK]}")
+            continue
+        if middle_list:
+            confirmed_list.extend(
+                middle_list[:ITEM_NAME_CONFIRMED_TOPK]
+            )
+            logger.info(f"{llm_item_name}没有可信的主体,但是有可选的主体:{middle_list[:ITEM_NAME_OPTIONS_TOPK]}")
+    return {
+        "confirmed_list":confirmed_list,
+        "option_list":option_list
+    }
+
+@step_log("step_6_change_state_property")
+def step_6_change_state_property(state,rewritten_querym, confirmed_option_dict):
+    confirmed_list = confirmed_option_dict.get("confirmed_list")
+    option_list = confirmed_option_dict.get("option_list")
+    if confirmed_list:
+        state['rewritten_query'] = rewritten_querym
+        state['item_names'] = confirmed_list
+        logger.info(f"已经有明确的item_name列表,已经更新state item_name以及rewritten_query属性!")
+    elif option_list:
+        state['answer'] = f"没有可信的item_name,但是有可选的:{option_list},请您明确!"
+        logger.info(f"没有明确的item_name列表,但是有可选的!已经更新answer属性!")
+    else:
+        # 如果没有确认 也没有可选
+        state['answer'] = f"没有可信,也没有可选的实体列表,请明确以后再次问题!!"
+@step_log("step_7_change_state_property")
+def step_7_save_user_chat_message(state):
+    # 向mongodb中写入数据
+    save_chat_message(
+        session_id=state.get("session_id"),
+        role="user",
+        text=state.get("original_query"),
+        rewritten_query=state.get("rewritten_query"),
+        item_names=state.get("item_names")
+    )
+
+
+
 
 if __name__ == "__main__":
     mock_state = {
