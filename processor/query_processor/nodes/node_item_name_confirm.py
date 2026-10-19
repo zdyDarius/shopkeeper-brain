@@ -47,24 +47,11 @@ def node_item_name_confirm(state:QueryGraphState):
     step_6_change_state_property(state, llm_dict.get("rewritten_query"), confirmed_option_dict)
     # TODO 8.向mongodb中写入对话
     step_7_save_user_chat_message(state)
-
-    # 后面会调用大模型，进行逻辑处理
-    # save_chat_message(
-    #     session_id = state.get("session_id"),
-    #     role = 'user',
-    #     text = state.get("original_query"),
-    #     rewritten_query="这是重写的问题",
-    #     item_names=["商品A", "商品B"],
-    #     image_urls=[]
-    # )
-
-    # time.sleep(1)
-    # 记录任务结束
     add_done_task(state["session_id"], sys._getframe().f_code.co_name,state["is_stream"])
 
     logger.info("---node_item_name_confirm---处理结束")
 
-    return {"item_names": ["示例商品"]}
+    return state
 @step_log("step_1_validate_and_get_data")
 def step_1_validate_and_get_data(state:QueryGraphState):
     session_id = state.get("session_id")
@@ -123,15 +110,16 @@ def step_3_call_llm_rewritten_and_extract_itemnames(history_list, original_query
 
 
     llm_model = get_llm_client(json_mode=True)
-    logger.debug(f"prompt_text: {prompt_text}")
     message = HumanMessage(content=prompt_text)
 
     chains = llm_model | JsonOutputParser()
 
 
     json_dict = chains.invoke([message])
+    print('json_dict+++++++++++++++++',json_dict)
 
     if not json_dict.get("item_names") :
+
         json_dict['item_names'] = []
 
     if not json_dict["rewritten_query"]:
@@ -212,13 +200,13 @@ def step_5_select_confirmed_and_option_item_names(milvus_dict):
     }
 
 @step_log("step_6_change_state_property")
-def step_6_change_state_property(state,rewritten_querym, confirmed_option_dict):
+def step_6_change_state_property(state,rewritten_query, confirmed_option_dict):
     confirmed_list = confirmed_option_dict.get("confirmed_list")
     option_list = confirmed_option_dict.get("option_list")
     if confirmed_list:
-        state['rewritten_query'] = rewritten_querym
+        state['rewritten_query'] = rewritten_query
         state['item_names'] = confirmed_list
-        logger.info(f"已经有明确的item_name列表,已经更新state item_name以及rewritten_query属性!")
+        logger.info(f"已经有明确的item_name列表,已经更新state item_name:{confirmed_list}以及rewritten_query:{rewritten_query}属性!")
     elif option_list:
         state['answer'] = f"没有可信的item_name,但是有可选的:{option_list},请您明确!"
         logger.info(f"没有明确的item_name列表,但是有可选的!已经更新answer属性!")
