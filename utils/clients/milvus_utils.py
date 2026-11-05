@@ -4,6 +4,8 @@ from common.config.milvus_config import milvus_config
 from common.logging.logger import logger            # 项目统一日志工具
 # 全局Milvus客户端实例，实现单例复用
 _milvus_client = None
+# 缓存当前pymilvus版本是否支持WeightedRanker的norm_score参数：None=未探测，True=支持，False=不支持
+_weighted_ranker_supports_norm_score = None
 
 
 def get_milvus_client():
@@ -176,7 +178,24 @@ def hybrid_search(client, collection_name, reqs, ranker_weights=(0.5, 0.5), norm
     try:
         # 初始化加权排名器：按权重融合稠密/稀疏向量的搜索结果
         # norm_score=True：先将两个向量评分归一化到0~1区间，再加权计算
-        rerank = WeightedRanker(ranker_weights[0], ranker_weights[1], norm_score=norm_score)
+        # 兼容性处理：新版pymilvus（如3.x）WeightedRanker支持norm_score参数，
+        # 旧版（如2.4.x及更早）构造函数不接受该参数，此时降级为不传，保持原有融合行为
+        global _weighted_ranker_supports_norm_score
+        if _weighted_ranker_supports_norm_score is False:
+            # 已探测到当前版本不支持，后续直接走兼容分支，避免反复触发异常
+            rerank = WeightedRanker(ranker_weights[0], ranker_weights[1])
+        else:
+            try:
+                rerank = WeightedRanker(ranker_weights[0], ranker_weights[1], norm_score=norm_score)
+                _weighted_ranker_supports_norm_score = True
+            except TypeError:
+                # 捕获到TypeError说明当前pymilvus版本不支持norm_score参数，降级并记录一次告警
+                _weighted_ranker_supports_norm_score = False
+                logger.warning(
+                    "当前pymilvus版本不支持WeightedRanker(norm_score=...)参数，"
+                    "已降级为不传norm_score（使用默认权重融合行为）"
+                )
+                rerank = WeightedRanker(ranker_weights[0], ranker_weights[1])
 
         # 默认返回字段：文档标识字段
         if output_fields is None:

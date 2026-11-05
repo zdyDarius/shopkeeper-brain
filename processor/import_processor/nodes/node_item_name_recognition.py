@@ -14,8 +14,8 @@ from common.config.milvus_config import milvus_config
 from common.logging.logger import logger, node_log, step_log
 from processor.import_processor.state import ImportGraphState
 from utils.clients.milvus_utils import get_milvus_client
-from utils.lm.embedding_utils import generate_embeddings
-from utils.lm.lm_utils import get_llm_client
+from utils.lm.bge_m3_embedding_http_util import generate_embeddings  # 改为远端HTTP向量服务
+from utils.lm.llm_client_txt_util import get_llm_client  # 文本大模型改走新工具（vllm/阿里云可切换）
 from utils.load_prompt import load_prompt
 from utils.task_utils import add_running_task, add_done_task
 

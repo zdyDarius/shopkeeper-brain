@@ -98,8 +98,8 @@ from ragas.metrics.collections import (  # ragas 0.4 五大评估指标（新版
 from common.logging.logger import logger  # 项目统一日志对象
 from processor.query_processor.main_graph import query_app  # RAG 主流程编译后的可执行图
 from processor.query_processor.state import create_query_default_state  # 查询流程默认状态工厂
-from utils.lm.embedding_utils import generate_embeddings  # BGE-M3 向量生成工具
-from utils.lm.lm_utils import get_llm_client  # 大模型客户端工具
+from utils.lm.bge_m3_embedding_http_util import generate_embeddings  # BGE-M3 向量生成工具（远端HTTP服务）
+from utils.lm.llm_client_txt_util import get_llm_client  # 文本大模型客户端工具（vllm/阿里云可切换）
 
 # ======================== 全局常量配置 ========================
 # 评估测试集路径

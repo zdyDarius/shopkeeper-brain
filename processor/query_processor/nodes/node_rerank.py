@@ -6,8 +6,8 @@ from langchain_core.output_parsers import StrOutputParser
 
 from common.logging.logger import node_log, logger, step_log
 from processor.query_processor.state import QueryGraphState
-from utils.lm.lm_utils import get_llm_client
-from utils.lm.reranker_utils import compute_token_number, get_reranker_model
+from utils.lm.llm_client_txt_util import get_llm_client  # 文本大模型改走新工具（vllm/阿里云可切换）
+from utils.lm.bge_rerank_http_util import compute_token_number, get_reranker_model  # 改为远端HTTP重排序服务
 from utils.load_prompt import load_prompt
 from utils.task_utils import add_running_task, add_done_task
 

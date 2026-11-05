@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 from common.logging.logger import logger, node_log, step_log
 from processor.query_processor.state import QueryGraphState
 from utils.clients.mongo_history_utils import save_chat_message, get_recent_messages
-from utils.lm.lm_utils import get_llm_client
+from utils.lm.llm_client_txt_util import get_llm_client  # 文本大模型改走新工具（vllm/阿里云可切换）
 from utils.load_prompt import load_prompt
 from utils.sse_utils import push_to_session, SSEEvent
 from utils.task_utils import add_running_task, add_done_task

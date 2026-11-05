@@ -6,7 +6,7 @@ from common.config.milvus_config import milvus_config
 from common.logging.logger import logger, node_log, step_log
 from processor.query_processor.state import QueryGraphState
 from utils.clients.milvus_utils import create_hybrid_search_requests, hybrid_search, get_milvus_client
-from utils.lm.embedding_utils import generate_embeddings
+from utils.lm.bge_m3_embedding_http_util import generate_embeddings  # 改为远端HTTP向量服务
 from utils.task_utils import add_done_task,add_running_task
 
 @node_log("node_search_embedding")
